@@ -11,12 +11,8 @@ import json
 
 PATH = '/usr/local/bin/chromedriver'
 driver = webdriver.Chrome(PATH)
-#driver.get('https://www.goodreads.com/book/show/19351.The_Epic_of_Gilgamesh')
-#clicks on screen to avoid popup
-#driver.execute_script('el = document.elementFromPoint(0, 100); el.click();')
 
-
-
+#functions to look for metadata for single bookpage
 def get_bookSeries():
     try:
         bookSeries = WebDriverWait(driver, 5).until(
@@ -60,9 +56,13 @@ def get_rating_distribution():
         rating_distribution = rating_distribution.find_elements(By.TAG_NAME, "tr")
         star5, star4, star3, star2, star1 = (v.text.split(' ')[-1].strip('(').strip(')')
                                         for v in rating_distribution)
+        rating_details_close = driver.find_element(By.CLASS_NAME,'close')
+        rating_details_close.click()
         return([star5, star4, star3, star2, star1])
+
     except:
         return(['','','','',''])
+
 
 def get_numberOfPages():
     try:
@@ -103,12 +103,11 @@ def get_description():
         description = description.text
     except:
         description = ''
-    return(description)
+        return(description)
 
-
-def bookDriver(bookid):
-    print(bookid)
-    driver.get('https://www.goodreads.com/book/show/' + str(bookid))
+def bookDriver(link):
+    #navigates to bookpage, scrapes metadata and outputs to jso
+    driver.get(link)
     #clicks on screen to avoid popup
     driver.execute_script('el = document.elementFromPoint(0, 100); el.click();')
 
@@ -116,14 +115,22 @@ def bookDriver(bookid):
         bookTitle = WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.ID, "bookTitle"))
             ).text
+        bookid = WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((By.ID, "book_id"))
+            )
+        bookid = bookid.get_attribute('value')
     except:
     #return empty dataframe
         driver.quit()
+        return
+
+    print(bookTitle)
 
     bookMeta = get_bookMeta()
     star5, star4, star3, star2, star1 = get_rating_distribution()
     bookData = {
     'bookid' : bookid,
+    'bookTitle' : bookTitle,
     'bookSeries' : get_bookSeries(),
     'bookAuthors' : get_bookAuthors(),
     'ratingValue' : bookMeta[0],
@@ -139,14 +146,11 @@ def bookDriver(bookid):
     'get_top10genres' : get_top10genres(),
     'description' : get_description()
     }
-    with open(f'records/{bookid}.{bookTitle}.json','w') as outfile:
+
+    print(bookData)
+    with open(f'data/records/{bookid}.{bookTitle}.json','w') as outfile:
         bookData = json.dump(bookData,outfile)
+    driver.quit()
+    return
 
-    return()
-
-
-for id in range(1,10):
-    try:
-        bookDriver(id)
-    except:
-        continue
+#bookDriver('https://www.goodreads.com/book/show/3.Harry_Potter_and_the_Sorcerer_s_Stone')
